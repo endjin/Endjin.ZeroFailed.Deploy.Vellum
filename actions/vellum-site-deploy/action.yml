@@ -104,8 +104,8 @@ runs:
     id: deploy
     uses: svrooij/azure-static-web-app-deploy-action@c292abe879fd1854817a09ef4b438dae659c7917   # v1.0.0
     with:
-      tenant_id: ${{ vars.AZURE_TENANT_ID }}
-      client_id: ${{ vars.AZURE_CLIENT_ID }}
+      tenant_id: ${{ inputs.azureTenantId }}
+      client_id: ${{ inputs.azureClientId }}
       static_web_app_name: ${{ inputs.swaSiteName }}
       app_location: website
       api_location: ''
