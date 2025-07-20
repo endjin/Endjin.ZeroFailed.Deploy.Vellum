@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/github/license/endjin/Endjin.ZeroFailed.Deploy.Vellum.svg)](https://github.com/endjin/Endjin.ZeroFailed.Deploy.Vellum/blob/main/LICENSE)
 
 
-A [ZeroFailed](https://github.com/zerofailed/ZeroFailed) extension encapsulating a process to build static web sites using the [Vellum](https://github.com/endjin/Endjin.StaticSiteGen) tooling.
+A [ZeroFailed](https://github.com/zerofailed/ZeroFailed) extension encapsulating a process to deploy static web sites built using the [Vellum](https://github.com/endjin/Endjin.StaticSiteGen) tooling to Azure.
 
 ## Overview
 
