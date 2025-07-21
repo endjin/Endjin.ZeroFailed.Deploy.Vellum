@@ -35,6 +35,7 @@ runs:
       key: website-${{ github.sha }}
   
   - run: |
+      ls -la
       mkdir website
       cd website
       unzip website.zip
