@@ -38,7 +38,7 @@ runs:
       ls -la
       mkdir website
       cd website
-      unzip website.zip
+      unzip ../website.zip
 
       echo "*** DEBUG ***"
       echo "azureClientId: '${{ inputs.azureClientId }}'"
