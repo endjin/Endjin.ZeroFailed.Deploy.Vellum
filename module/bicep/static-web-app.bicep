@@ -1,7 +1,16 @@
+// <copyright file="static-web-app.bicep" company="Endjin Limited">
+// Copyright (c) Endjin Limited. All rights reserved.
+// </copyright>
+targetScope = 'resourceGroup'
+
 param appLocation string
 param location string
 param siteName string
 param customDomain string = ''
+param dnsResourceGroupName string
+param useAzureDns bool
+@secure()
+param previewSitesPassword string = ''
 
 param repositoryBranch string = 'main'
 param allowConfigFileUpdates bool = true
@@ -17,7 +26,7 @@ param skuName string = 'Free'
 param stagingEnvironmentPolicy string = 'Enabled'
 param repositoryUrl string
 
-resource swa 'Microsoft.Web/staticSites@2022-03-01' = {
+resource swa 'Microsoft.Web/staticSites@2024-11-01' = {
   name: siteName
   location: location
   sku: {
@@ -36,10 +45,27 @@ resource swa 'Microsoft.Web/staticSites@2022-03-01' = {
   }
 }
 
-resource custom_domain 'Microsoft.Web/staticSites/customDomains@2022-03-01' = if (!empty(customDomain)) {
-  name: empty(customDomain) ? 'unused' : customDomain
+// Create a Azure public DNS zone for the custom domain
+module dns './dns.bicep' = if (!empty(customDomain) && useAzureDns) {
+  name: 'dnsDeploy'
+  scope: resourceGroup(dnsResourceGroupName)
+  params: {
+    domainName: customDomain
+    siteResourceId: swa.id
+  }
+}
+
+// Undocumented feature for password-protecting access to preview sites
+resource swa_config 'Microsoft.Web/staticSites/config@2024-11-01'= if (!empty(previewSitesPassword)) {
+#disable-next-line BCP036
+  name: 'basicAuth'
   parent: swa
-  properties: {}
+  properties: {
+    password: previewSitesPassword
+    secretState: 'Password'
+    applicableEnvironmentsMode: 'StagingEnvironments'
+  }
 }
 
 output fqdn string = swa.properties.defaultHostname
+output name string = swa.name

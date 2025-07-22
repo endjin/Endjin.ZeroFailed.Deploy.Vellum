@@ -23,3 +23,85 @@ task SetupVellumArmDeployment -Before ProvisionCore readConfiguration,{
         }
     )
 }
+
+# Synopsis: Handle configuring a Azure Static Web App custom domain hosted on Azure DNS
+task ConfigureCustomDomainWithAzureDns -After ProvisionCore -If { $deploymentConfig.customDomain -and $deploymentConfig.useAzureDns} {
+
+    # Configuring custom domains via Bicep/ARM requires that the DNS TXT records already exist, otherwise the
+    # deployment will timeout as it waits to validate the custom domain.
+    #
+    # This task will take care of enabling the custom domain and registering a the relevant DNS TXT record
+    # so it can be validated.
+    #
+    # NOTE: This script assumes that the domain name registration is already delegated to Azure DNS for resolution.
+    $existingCustomDomain = Get-AzStaticWebAppCustomDomain `
+                                -ResourceGroupName $deploymentConfig.resourceGroupName `
+                                -Name $deploymentConfig.siteName `
+                                -Domain $deploymentConfig.customDomain `
+                                -ErrorAction Ignore
+
+    # Handle when the SWA is not yet configured to use a custom domain
+    if (!$existingCustomDomain) {
+        Write-Build White "Adding custom domain '$($deploymentConfig.customDomain)' for the Azure Static Web App '$($deploymentConfig.siteName)'"
+        $newCustomDomainResp = New-AzStaticWebAppCustomDomain `
+                                    -ResourceGroupName $deploymentConfig.resourceGroupName `
+                                    -Name $deploymentConfig.siteName `
+                                    -Domain $deploymentConfig.customDomain `
+                                    -ValidationMethod 'dns-txt-token' `
+                                    -NoWait
+
+        # Pause and then re-read the custom domain details so we have the validation token
+        Write-Build White "Waiting for validation token to become available..."
+        Start-Sleep -Seconds 30
+        $existingCustomDomain = Get-AzStaticWebAppCustomDomain `
+                                    -ResourceGroupName $deploymentConfig.resourceGroupName `
+                                    -Name $deploymentConfig.siteName `
+                                    -Domain $deploymentConfig.customDomain
+    }
+
+    # Ensure that a DNS TXT record is configured with the validation token
+    #
+    # NOTE: The Bicep deployment is responsible for deploying the DNS Zone and an ALIAS record that points to the SWA resource.
+    $existingDnsZone = Get-AzDnsZone -ResourceGroupName $deploymentConfig.resourceGroupName -Name $deploymentConfig.customDomain
+    if ($existingDnsZone) {
+        $existingDnsTxtRecordSet = $existingDnsZone |
+                                        Get-AzDnsRecordSet |
+                                        Where-Object { $_.Name -eq '@' -and $_.RecordType -eq 'TXT' }
+                                        
+        if (!$existingDnsTxtRecordSet) {
+            # No TXT record exists in the DNS Zone
+            Write-Build White "Creating DNS 'TXT' recordset"
+            $existingDnsTxtRecordSet = New-AzDnsRecordSet `
+                                            -ZoneName $deploymentConfig.customDomain `
+                                            -ResourceGroupName $deploymentConfig.resourceGroupName `
+                                            -Name '@' `
+                                            -RecordType 'TXT' `
+                                            -Ttl 3600 `
+                                            -DnsRecords @()
+        }
+        
+        $existingDnsTxtRecord = $existingDnsTxtRecordSet | Select-Object -ExpandProperty Records
+
+        if ($existingDnsTxtRecord -and $existingDnsTxtRecord.Value -is [string] -and $existingDnsTxtRecord.Value -eq $existingCustomDomain.ValidationToken) {
+            # The existing TXT record contains a single & value value
+            Write-Build Green "✅ Domain validation DNS 'TXT' record already configured with current validation token"
+        }
+        else {
+            # We don't have a suitable TXT record
+
+            if ($existingDnsTxtRecord) {
+                # The TXT record exists but contains an old value(s) we need to purge
+                Write-Build White "Removing existing domain validation DNS 'TXT' record with incorrect value"
+                $existingDnsTxtRecord | Remove-AzDnsRecordConfig -RecordSet $existingDnsTxtRecordSet | Out-String | Write-Verbose
+            }
+
+            # Now we can setup the required TXT record
+            Write-Build Green "✅ Adding domain validation DNS 'TXT' record with current validation token"
+            Add-AzDnsRecordConfig -RecordSet $existingDnsTxtRecordSet -Value $existingCustomDomain.ValidationToken | Out-String | Write-Verbose
+            Set-AzDnsRecordSet -RecordSet $existingDnsTxtRecordSet | Out-String | Write-Verbose
+        }
+    }
+    else {
+        Write-Warning "Skipping custom domain validation steps; unable to find Azure DNS Zone for '$($deploymentConfig.customDomain)' [ResourceGroup=$($deploymentConfig.resourceGroupName)]"
+    }
+}
