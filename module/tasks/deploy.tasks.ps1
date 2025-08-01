@@ -2,6 +2,7 @@
 # Copyright (c) Endjin Limited. All rights reserved.
 # </copyright>
 
+# Synopsis: Configures the required ARM deployment using the ZeroFailed.Deploy.Azure extension conventions
 task SetupVellumArmDeployment -Before ProvisionCore readConfiguration,{
 
     # Populate ARM deployment configuration required by ZeroFailed.Deploy.Azure extension
@@ -24,7 +25,7 @@ task SetupVellumArmDeployment -Before ProvisionCore readConfiguration,{
     )
 }
 
-# Synopsis: Handle configuring a Azure Static Web App custom domain hosted on Azure DNS
+# Synopsis: Configures an Azure Static Web App with a custom domain hosted on Azure DNS
 task ConfigureCustomDomainWithAzureDns -After ProvisionCore -If { $deploymentConfig.customDomain -and $deploymentConfig.useAzureDns} {
 
     # Configuring custom domains via Bicep/ARM requires that the DNS TXT records already exist, otherwise the
