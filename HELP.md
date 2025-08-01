@@ -16,10 +16,10 @@ For details of configuring how the site is deployed, please refer to the [Deploy
 
 ### Tasks
 
-| Name | Description |
-|------|-------------|
-| `ConfigureCustomDomainWithAzureDns` | Configures an Azure Static Web App with a custom domain hosted on Azure DNS |
-| `SetupVellumArmDeployment` | Configures the required ARM deployment using the ZeroFailed.Deploy.Azure extension conventions |
+| Name                                | Description                                                                                    |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `ConfigureCustomDomainWithAzureDns` | Configures an Azure Static Web App with a custom domain hosted on Azure DNS                    |
+| `SetupVellumArmDeployment`          | Configures the required ARM deployment using the ZeroFailed.Deploy.Azure extension conventions |
 
 
 <!-- END_GENERATED_HELP -->
