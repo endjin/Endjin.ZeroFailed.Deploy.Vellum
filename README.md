@@ -128,7 +128,7 @@ To bootstrap an initial configuration area, follow the steps below:
         azureSubscriptionId = '<azure-subscription-id>'
         resourceGroupName = '<target-resource-group-name>'
         siteName = '<static-web-app-site-name>'
-        staticWebAppSku = 'Standard'    # Standard or Premium
+        staticWebAppSku = 'Standard'    # 'Free' or 'Standard'
         customDomain = ''               # If using a custom domain enter it here, otherwise this functionality will not be enabled
         useAzureDns = $false            # When true, this will create the DNS zone (for the above domain) alongside the SWA site resource and configure for use as the custom domain
     }
