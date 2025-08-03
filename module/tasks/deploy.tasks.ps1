@@ -51,14 +51,21 @@ task ConfigureCustomDomainWithAzureDns -After ProvisionCore -If { $deploymentCon
                                     -ValidationMethod 'dns-txt-token' `
                                     -NoWait
 
-        # Pause and then re-read the custom domain details so we have the validation token
-        Write-Build White "Waiting for validation token to become available..."
-        Start-Sleep -Seconds 30
+        # Re-read the custom domain details which should now be setup
+        Start-Sleep -Seconds 5
         $existingCustomDomain = Get-AzStaticWebAppCustomDomain `
                                     -ResourceGroupName $deploymentConfig.resourceGroupName `
                                     -Name $deploymentConfig.siteName `
                                     -Domain $deploymentConfig.customDomain
     }
+
+    # Ensure we have given SWA enough time to make custom domain validation token available
+    $validationToken = Get-SWACustomDomainValidationToken `
+                            -ResourceGroupName $deploymentConfig.resourceGroupName `
+                            -Name $deploymentConfig.siteName `
+                            -Domain $deploymentConfig.customDomain `
+                            -PollingIntervalSeconds 15 `
+                            -MaxPollingAttempts 8
 
     # Ensure that a DNS TXT record is configured with the validation token
     #
@@ -83,11 +90,15 @@ task ConfigureCustomDomainWithAzureDns -After ProvisionCore -If { $deploymentCon
         
         $existingDnsTxtRecord = $existingDnsTxtRecordSet | Select-Object -ExpandProperty Records
 
-        if ($existingDnsTxtRecord -and $existingDnsTxtRecord.Value -is [string] -and $existingDnsTxtRecord.Value -eq $existingCustomDomain.ValidationToken) {
+        # Debugging issue
+        $existingCustomDomain | Out-String | Write-Verbose -verbose:$true
+        $existingDnsTxtRecord | Out-String | Write-Verbose -verbose:$true
+
+        if ($existingDnsTxtRecord -and $existingDnsTxtRecord.Value -is [string] -and $existingDnsTxtRecord.Value -eq $validationToken) {
             # The existing TXT record contains a single & value value
             Write-Build Green "✅ Domain validation DNS 'TXT' record already configured with current validation token"
         }
-        else {
+        elseif (![string]::IsNullOrEmpty($validationToken)) {
             # We don't have a suitable TXT record
 
             if ($existingDnsTxtRecord) {
@@ -98,7 +109,7 @@ task ConfigureCustomDomainWithAzureDns -After ProvisionCore -If { $deploymentCon
 
             # Now we can setup the required TXT record
             Write-Build Green "✅ Adding domain validation DNS 'TXT' record with current validation token"
-            Add-AzDnsRecordConfig -RecordSet $existingDnsTxtRecordSet -Value $existingCustomDomain.ValidationToken | Out-String | Write-Verbose
+            Add-AzDnsRecordConfig -RecordSet $existingDnsTxtRecordSet -Value $validationToken | Out-String | Write-Verbose
             Set-AzDnsRecordSet -RecordSet $existingDnsTxtRecordSet | Out-String | Write-Verbose
         }
     }
