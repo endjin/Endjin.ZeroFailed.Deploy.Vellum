@@ -35,14 +35,19 @@ task ConfigureCustomDomainWithAzureDns -After ProvisionCore -If { $deploymentCon
     # so it can be validated.
     #
     # NOTE: This script assumes that the domain name registration is already delegated to Azure DNS for resolution.
-    $existingCustomDomain = Get-AzStaticWebAppCustomDomain `
-                                -ResourceGroupName $deploymentConfig.resourceGroupName `
-                                -Name $deploymentConfig.siteName `
-                                -Domain $deploymentConfig.customDomain `
-                                -ErrorAction Ignore
+    $site = Get-AzStaticWebApp -ResourceGroupName $ResourceGroupName `
+                                       -Name $Name `
+                                       -ErrorAction Ignore
 
-    # Handle when the SWA is not yet configured to use a custom domain
-    if (!$existingCustomDomain) {
+    if (!$site) {
+        throw "The Azure Static Web App not found: [ResourceGroup=$ResourceGroupName] [Name=$Name]"
+    }
+
+    # Call SWA REST API directly since the 'Get-AzStaticWebAppCustomDomain' cmdlet does not surface the custom domain's status details
+    $customDomainResp = Invoke-AzRestMethod -Uri "https://management.azure.com$($site.Id)/customDomains/$($deploymentConfig.customDomain)?api-version=2024-11-01"
+    
+    # Handle when the custom domain has not yet been setup
+    if ($customDomainResp.StatusCode -eq 404) {
         Write-Build White "Adding custom domain '$($deploymentConfig.customDomain)' for the Azure Static Web App '$($deploymentConfig.siteName)'"
         $newCustomDomainResp = New-AzStaticWebAppCustomDomain `
                                     -ResourceGroupName $deploymentConfig.resourceGroupName `
@@ -53,13 +58,29 @@ task ConfigureCustomDomainWithAzureDns -After ProvisionCore -If { $deploymentCon
 
         # Re-read the custom domain details which should now be setup
         Start-Sleep -Seconds 5
-        $existingCustomDomain = Get-AzStaticWebAppCustomDomain `
-                                    -ResourceGroupName $deploymentConfig.resourceGroupName `
-                                    -Name $deploymentConfig.siteName `
-                                    -Domain $deploymentConfig.customDomain
+        $customDomainResp = Invoke-AzRestMethod -Uri "https://management.azure.com$($site.Id)/customDomains/$($deploymentConfig.customDomain)?api-version=2024-11-01"
     }
 
-    # Ensure we have given SWA enough time to make custom domain validation token available
+    if ($customDomainResp.StatusCode -ge 400) {
+        throw "Error or unexpected response whilst querying the Static Web App Custom Domain [StatusCode=$($customDomainResp.StatusCode)] [Code=$($customDomainResp.Code)] [Message=$($customDomainResp.Message)]"
+    }
+    else {
+        # Custom domain exists, extracts its properties
+        $customDomain = $customDomainResp |
+                            Select-Object -ExpandProperty Content |
+                            ConvertFrom-Json -Depth 100 |
+                            Select-Object -ExpandProperty properties |
+                            ConvertFrom-Json -Depth 100
+
+        # If the domain is already fully-configured then there is nothing further to do
+        if ($customDomain.status -eq 'Ready') {
+            Write-Build Green "✅ The custom domain is in a ready state"
+            return
+        }
+    }
+
+    # If we get this far then the domain is not yet fully configured, so we need to check
+    # that the DNS is setup with the correct validation token
     $validationToken = Get-SWACustomDomainValidationToken `
                             -ResourceGroupName $deploymentConfig.resourceGroupName `
                             -Name $deploymentConfig.siteName `
