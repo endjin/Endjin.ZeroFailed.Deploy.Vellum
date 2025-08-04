@@ -5,6 +5,13 @@
 BeforeAll {
     # Import the function under test
     . $PSScriptRoot\Get-SWACustomDomainValidationToken.ps1
+
+    # Make a stub of the cmdlet from the Az.Websites module available for mocking,
+    # to avoid actually needing the module installed so Pester can auto-mock it.
+    function Get-AzStaticWebAppCustomDomain {
+        [CmdletBinding()]
+        param ($ResourceGroupName, $Name, $DomainName)
+    }
 }
 
 Describe 'Get-SWACustomDomainValidationToken' {
