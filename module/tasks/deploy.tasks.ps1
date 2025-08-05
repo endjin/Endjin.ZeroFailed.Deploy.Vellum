@@ -35,12 +35,12 @@ task ConfigureCustomDomainWithAzureDns -After ProvisionCore -If { $deploymentCon
     # so it can be validated.
     #
     # NOTE: This script assumes that the domain name registration is already delegated to Azure DNS for resolution.
-    $site = Get-AzStaticWebApp -ResourceGroupName $ResourceGroupName `
-                                       -Name $Name `
-                                       -ErrorAction Ignore
+    $site = Get-AzStaticWebApp -ResourceGroupName $deploymentConfig.resourceGroupName `
+                               -Name $deploymentConfig.siteName `
+                               -ErrorAction Ignore
 
     if (!$site) {
-        throw "The Azure Static Web App not found: [ResourceGroup=$ResourceGroupName] [Name=$Name]"
+        throw "The Azure Static Web App not found: [ResourceGroup=$($deploymentConfig.resourceGroupName)] [Name=$($deploymentConfig.siteName)]"
     }
 
     # Call SWA REST API directly since the 'Get-AzStaticWebAppCustomDomain' cmdlet does not surface the custom domain's status details
