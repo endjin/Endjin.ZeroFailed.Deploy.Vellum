@@ -69,8 +69,7 @@ task ConfigureCustomDomainWithAzureDns -After ProvisionCore -If { $deploymentCon
         $customDomain = $customDomainResp |
                             Select-Object -ExpandProperty Content |
                             ConvertFrom-Json -Depth 100 |
-                            Select-Object -ExpandProperty properties |
-                            ConvertFrom-Json -Depth 100
+                            Select-Object -ExpandProperty properties
 
         # If the domain is already fully-configured then there is nothing further to do
         if ($customDomain.status -eq 'Ready') {
