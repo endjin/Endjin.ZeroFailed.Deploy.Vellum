@@ -34,20 +34,7 @@ task . FullBuild
 # task PostInit {}
 # task PreVersion {}
 # task PostVersion {}
-task PreBuild {
-    if (!$IsRunningOnCICDServer) {
-        # Whwn running locally, ensure the lockfile template is up-to-date
-        Set-Location (Join-Path $here 'module' 'templates')
-        try {
-            Copy-Item vite-package.template.json package.json -Force
-            exec { npm install --package-lock-only }
-            Copy-Item package-lock.json vite-package-lock.template.json
-        }
-        finally {
-            Remove-Item package*.json
-        }
-    }
-}
+# task PreBuild {}
 # task PostBuild {}
 # task PreTest {}
 # task PostTest {}

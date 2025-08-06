@@ -35,14 +35,19 @@ task ConfigureCustomDomainWithAzureDns -After ProvisionCore -If { $deploymentCon
     # so it can be validated.
     #
     # NOTE: This script assumes that the domain name registration is already delegated to Azure DNS for resolution.
-    $existingCustomDomain = Get-AzStaticWebAppCustomDomain `
-                                -ResourceGroupName $deploymentConfig.resourceGroupName `
-                                -Name $deploymentConfig.siteName `
-                                -Domain $deploymentConfig.customDomain `
-                                -ErrorAction Ignore
+    $site = Get-AzStaticWebApp -ResourceGroupName $deploymentConfig.resourceGroupName `
+                               -Name $deploymentConfig.siteName `
+                               -ErrorAction Ignore
 
-    # Handle when the SWA is not yet configured to use a custom domain
-    if (!$existingCustomDomain) {
+    if (!$site) {
+        throw "The Azure Static Web App not found: [ResourceGroup=$($deploymentConfig.resourceGroupName)] [Name=$($deploymentConfig.siteName)]"
+    }
+
+    # Call SWA REST API directly since the 'Get-AzStaticWebAppCustomDomain' cmdlet does not surface the custom domain's status details
+    $customDomainResp = Invoke-AzRestMethod -Uri "https://management.azure.com$($site.Id)/customDomains/$($deploymentConfig.customDomain)?api-version=2024-11-01"
+    
+    # Handle when the custom domain has not yet been setup
+    if ($customDomainResp.StatusCode -eq 404) {
         Write-Build White "Adding custom domain '$($deploymentConfig.customDomain)' for the Azure Static Web App '$($deploymentConfig.siteName)'"
         $newCustomDomainResp = New-AzStaticWebAppCustomDomain `
                                     -ResourceGroupName $deploymentConfig.resourceGroupName `
@@ -51,14 +56,36 @@ task ConfigureCustomDomainWithAzureDns -After ProvisionCore -If { $deploymentCon
                                     -ValidationMethod 'dns-txt-token' `
                                     -NoWait
 
-        # Pause and then re-read the custom domain details so we have the validation token
-        Write-Build White "Waiting for validation token to become available..."
-        Start-Sleep -Seconds 30
-        $existingCustomDomain = Get-AzStaticWebAppCustomDomain `
-                                    -ResourceGroupName $deploymentConfig.resourceGroupName `
-                                    -Name $deploymentConfig.siteName `
-                                    -Domain $deploymentConfig.customDomain
+        # Re-read the custom domain details which should now be setup
+        Start-Sleep -Seconds 5
+        $customDomainResp = Invoke-AzRestMethod -Uri "https://management.azure.com$($site.Id)/customDomains/$($deploymentConfig.customDomain)?api-version=2024-11-01"
     }
+
+    if ($customDomainResp.StatusCode -ge 400) {
+        throw "Error or unexpected response whilst querying the Static Web App Custom Domain [StatusCode=$($customDomainResp.StatusCode)] [Code=$($customDomainResp.Code)] [Message=$($customDomainResp.Message)]"
+    }
+    else {
+        # Custom domain exists, extracts its properties
+        $customDomain = $customDomainResp |
+                            Select-Object -ExpandProperty Content |
+                            ConvertFrom-Json -Depth 100 |
+                            Select-Object -ExpandProperty properties
+
+        # If the domain is already fully-configured then there is nothing further to do
+        if ($customDomain.status -eq 'Ready') {
+            Write-Build Green "✅ The custom domain is in a ready state"
+            return
+        }
+    }
+
+    # If we get this far then the domain is not yet fully configured, so we need to check
+    # that the DNS is setup with the correct validation token
+    $validationToken = Get-SWACustomDomainValidationToken `
+                            -ResourceGroupName $deploymentConfig.resourceGroupName `
+                            -Name $deploymentConfig.siteName `
+                            -Domain $deploymentConfig.customDomain `
+                            -PollingIntervalSeconds 15 `
+                            -MaxPollingAttempts 8
 
     # Ensure that a DNS TXT record is configured with the validation token
     #
@@ -83,11 +110,15 @@ task ConfigureCustomDomainWithAzureDns -After ProvisionCore -If { $deploymentCon
         
         $existingDnsTxtRecord = $existingDnsTxtRecordSet | Select-Object -ExpandProperty Records
 
-        if ($existingDnsTxtRecord -and $existingDnsTxtRecord.Value -is [string] -and $existingDnsTxtRecord.Value -eq $existingCustomDomain.ValidationToken) {
+        # Debugging issue
+        $existingCustomDomain | Out-String | Write-Verbose -verbose:$true
+        $existingDnsTxtRecord | Out-String | Write-Verbose -verbose:$true
+
+        if ($existingDnsTxtRecord -and $existingDnsTxtRecord.Value -is [string] -and $existingDnsTxtRecord.Value -eq $validationToken) {
             # The existing TXT record contains a single & value value
             Write-Build Green "✅ Domain validation DNS 'TXT' record already configured with current validation token"
         }
-        else {
+        elseif (![string]::IsNullOrEmpty($validationToken)) {
             # We don't have a suitable TXT record
 
             if ($existingDnsTxtRecord) {
@@ -98,7 +129,7 @@ task ConfigureCustomDomainWithAzureDns -After ProvisionCore -If { $deploymentCon
 
             # Now we can setup the required TXT record
             Write-Build Green "✅ Adding domain validation DNS 'TXT' record with current validation token"
-            Add-AzDnsRecordConfig -RecordSet $existingDnsTxtRecordSet -Value $existingCustomDomain.ValidationToken | Out-String | Write-Verbose
+            Add-AzDnsRecordConfig -RecordSet $existingDnsTxtRecordSet -Value $validationToken | Out-String | Write-Verbose
             Set-AzDnsRecordSet -RecordSet $existingDnsTxtRecordSet | Out-String | Write-Verbose
         }
     }
