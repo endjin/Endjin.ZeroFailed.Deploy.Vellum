@@ -16,6 +16,7 @@ param repositoryBranch string
 param staticWebAppSku string = 'Free'
 param location string = resourceGroup().location
 param dnsResourceGroupName string = resourceGroup().name
+param dnsResourceSubscriptionId string = subscription().subscriptionId
 
 module swa './static-web-app.bicep' = {
   name: 'swaDeploy'
@@ -29,6 +30,7 @@ module swa './static-web-app.bicep' = {
     customDomain: customDomain
     useAzureDns: useAzureDns
     dnsResourceGroupName: dnsResourceGroupName
+    dnsResourceSubscriptionId: dnsResourceSubscriptionId
   }
 }
 
