@@ -77,6 +77,7 @@ task ConfigureCustomDomainWithAzureDns -After ProvisionCore -If { $deploymentCon
             return
         }
     }
+    Write-Verbose "Existing custom domain details:`n$($customDomain | Out-String)"
 
     # If we get this far then the domain is not yet fully configured, so we need to check
     # that the DNS is setup with the correct validation token
@@ -87,10 +88,19 @@ task ConfigureCustomDomainWithAzureDns -After ProvisionCore -If { $deploymentCon
                             -PollingIntervalSeconds 15 `
                             -MaxPollingAttempts 8
 
+    # If necessary switch subscription context before attempting DNS configuration
+    $dnsSubscriptionId = $deploymentConfig.ContainsKey('dnsResourceSubscriptionId') ? $deploymentConfig.dnsResourceSubscriptionId : $deploymentConfig.azureSubscriptionId
+    $switchSubscription = $dnsSubscriptionId -ne $deploymentConfig.azureSubscriptionId
+    if ($switchSubscription) {
+        Write-Build White "Switching to DNS subscription: $dnsSubscriptionId"
+        Select-AzSubscription -SubscriptionId $dnsSubscriptionId -TenantId $deploymentConfig.azureTenantId | Out-Null
+    }
+
     # Ensure that a DNS TXT record is configured with the validation token
     #
     # NOTE: The Bicep deployment is responsible for deploying the DNS Zone and an ALIAS record that points to the SWA resource.
-    $existingDnsZone = Get-AzDnsZone -ResourceGroupName $deploymentConfig.resourceGroupName -Name $deploymentConfig.customDomain
+    $dnsResourceGroupName = $deploymentConfig.ContainsKey('dnsResourceGroupName') ? $deploymentConfig.dnsResourceGroupName : $deploymentConfig.resourceGroupName
+    $existingDnsZone = Get-AzDnsZone -ResourceGroupName $dnsResourceGroupName -Name $deploymentConfig.customDomain -ErrorAction SilentlyContinue
     if ($existingDnsZone) {
         $existingDnsTxtRecordSet = $existingDnsZone |
                                         Get-AzDnsRecordSet |
@@ -101,7 +111,7 @@ task ConfigureCustomDomainWithAzureDns -After ProvisionCore -If { $deploymentCon
             Write-Build White "Creating DNS 'TXT' recordset"
             $existingDnsTxtRecordSet = New-AzDnsRecordSet `
                                             -ZoneName $deploymentConfig.customDomain `
-                                            -ResourceGroupName $deploymentConfig.resourceGroupName `
+                                            -ResourceGroupName $dnsResourceGroupName `
                                             -Name '@' `
                                             -RecordType 'TXT' `
                                             -Ttl 3600 `
@@ -109,10 +119,7 @@ task ConfigureCustomDomainWithAzureDns -After ProvisionCore -If { $deploymentCon
         }
         
         $existingDnsTxtRecord = $existingDnsTxtRecordSet | Select-Object -ExpandProperty Records
-
-        # Debugging issue
-        $existingCustomDomain | Out-String | Write-Verbose -verbose:$true
-        $existingDnsTxtRecord | Out-String | Write-Verbose -verbose:$true
+        Write-Verbose "Existing TXT record details:`n$($existingDnsTxtRecord | Out-String)"
 
         if ($existingDnsTxtRecord -and $existingDnsTxtRecord.Value -is [string] -and $existingDnsTxtRecord.Value -eq $validationToken) {
             # The existing TXT record contains a single & value value
@@ -134,6 +141,12 @@ task ConfigureCustomDomainWithAzureDns -After ProvisionCore -If { $deploymentCon
         }
     }
     else {
-        Write-Warning "Skipping custom domain validation steps; unable to find Azure DNS Zone for '$($deploymentConfig.customDomain)' [ResourceGroup=$($deploymentConfig.resourceGroupName)]"
+        Write-Warning "Skipping custom domain validation steps; unable to find Azure DNS Zone for '$($deploymentConfig.customDomain)' [ResourceGroup=$dnsResourceGroupName]"
+        Write-Build Yellow "Potentially caused by this error, check details to confirm: $($error[0].Exception.Message)`n$($error[0].ScriptStackTrace)"
+    }
+
+    if ($switchSubscription) {
+        Write-Build White "Switching back to primary deployment subscription: $($deploymentConfig.azureSubscriptionId)"
+        Select-AzSubscription -SubscriptionId $deploymentConfig.azureSubscriptionId -TenantId $deploymentConfig.azureTenantId | Out-Null
     }
 }
