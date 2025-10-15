@@ -5,12 +5,11 @@ targetScope = 'resourceGroup'
 
 param domainName string
 param siteResourceId string
-param location string = resourceGroup().location
 
 @onlyIfNotExists()
 resource dns_zone 'Microsoft.Network/dnsZones@2023-07-01-preview' = {
   name: domainName
-  location: location
+  location: 'Global'
 }
 
 resource alias_record 'Microsoft.Network/dnszones/A@2023-07-01-preview' = {
