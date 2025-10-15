@@ -21,6 +21,7 @@ $PowerShellModulesToPublish = @(
         AliasesToExport = @()
     }
 )
+$PesterCodeCoveragePaths = "$PesterTestsDir/functions"
 
 # Customise the build process
 task . FullBuild
