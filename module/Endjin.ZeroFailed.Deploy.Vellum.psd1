@@ -122,7 +122,7 @@ PrivateData = @{
                 # Assume latest stable version
                 Name = "ZeroFailed.Deploy.Azure"
                 GitRepository = "https://github.com/zerofailed/ZeroFailed.Deploy.Azure.git"
-                GitRef = "main"
+                GitRef = "feature/manage-bicep-cli-version"
             }
         )
     }
