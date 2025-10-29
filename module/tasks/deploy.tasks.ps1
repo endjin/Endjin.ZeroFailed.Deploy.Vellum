@@ -2,6 +2,8 @@
 # Copyright (c) Endjin Limited. All rights reserved.
 # </copyright>
 
+. $PSScriptRoot/deploy.properties.ps1
+
 # Synopsis: Configures the required ARM deployment using the ZeroFailed.Deploy.Azure extension conventions
 task SetupVellumArmDeployment -Before ProvisionCore readConfiguration,{
 
