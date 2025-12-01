@@ -8,6 +8,7 @@ param location string
 param siteName string
 param customDomain string = ''
 param dnsResourceGroupName string
+param dnsResourceSubscriptionId string
 param useAzureDns bool
 @secure()
 param previewSitesPassword string = ''
@@ -48,7 +49,7 @@ resource swa 'Microsoft.Web/staticSites@2024-11-01' = {
 // Create a Azure public DNS zone for the custom domain
 module dns './dns.bicep' = if (!empty(customDomain) && useAzureDns) {
   name: 'dnsDeploy'
-  scope: resourceGroup(dnsResourceGroupName)
+  scope: resourceGroup(dnsResourceSubscriptionId, dnsResourceGroupName)
   params: {
     domainName: customDomain
     siteResourceId: swa.id

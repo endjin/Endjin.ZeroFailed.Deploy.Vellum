@@ -5,12 +5,11 @@ targetScope = 'resourceGroup'
 
 param domainName string
 param siteResourceId string
-// param siteValidationToken string
-param location string = resourceGroup().location
 
+@onlyIfNotExists()
 resource dns_zone 'Microsoft.Network/dnsZones@2023-07-01-preview' = {
   name: domainName
-  location: location
+  location: 'Global'
 }
 
 resource alias_record 'Microsoft.Network/dnszones/A@2023-07-01-preview' = {
@@ -28,3 +27,5 @@ resource alias_record 'Microsoft.Network/dnszones/A@2023-07-01-preview' = {
 // The required TXT record is handled outside the ARM deployment since
 // the SWA resource will hang until the DNS record exists, but we don't know
 // what the validation token is until the SWA resource deployment completes!
+
+output aliasDnsRecordId string = alias_record.id
