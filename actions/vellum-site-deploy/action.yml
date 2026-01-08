@@ -13,15 +13,15 @@ inputs:
   githubToken:
     description: 'The default GitHub token for the workflow run'
     required: true
+  swaApiToken:
+    required: false
+    description: 'DEPRECATED: This is no longer used, but is temporarily retained for backwards-compatibility'
   swaResourceGroupName:
     description: 'The name of the resource group for the Azure Static Web App'
     required: true
   swaSiteName:
     description: 'The name of the Azure Static Web App'
     required: true
-  swaApiToken:
-    required: false
-    description: 'DEPRECATED: This is no longer used, but is temporarily retained for backwards-compatibility'
 
 
 runs:
