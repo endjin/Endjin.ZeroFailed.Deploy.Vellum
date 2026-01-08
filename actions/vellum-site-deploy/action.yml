@@ -13,9 +13,6 @@ inputs:
   githubToken:
     description: 'The default GitHub token for the workflow run'
     required: true
-  swaApiToken:
-    required: true
-    description: 'The API token for the Azure Static Web App'
   swaResourceGroupName:
     description: 'The name of the resource group for the Azure Static Web App'
     required: true
