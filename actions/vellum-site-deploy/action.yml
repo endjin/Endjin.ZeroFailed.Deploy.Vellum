@@ -14,8 +14,8 @@ inputs:
     description: 'The default GitHub token for the workflow run'
     required: true
   swaApiToken:
-    required: true
-    description: 'The API token for the Azure Static Web App'
+    required: false
+    description: 'DEPRECATED: This is no longer used, but is temporarily retained for backwards-compatibility'
   swaResourceGroupName:
     description: 'The name of the resource group for the Azure Static Web App'
     required: true
@@ -55,7 +55,7 @@ runs:
       subscription-id: ${{ inputs.azureSubscriptionId }}
       enable-AzPSSession: true
 
-  - name: 'Check existing preview sites'
+  - name: Check existing preview sites
     uses: azure/powershell@53dd145408794f7e80f97cfcca04155c85234709   # v2.0.0
     with:
       inlineScript: |
@@ -101,22 +101,25 @@ runs:
         }
       azPSVersion: "latest"
 
+  - name: Get Site API token
+    id: getApiToken
+    shell: pwsh
+    run: |
+      $secretInfo = (az staticwebapp secrets list --name ${{ inputs.swaSiteName }}) | ConvertFrom-Json
+      $apiToken = $($secretInfo.properties.apiKey)
+      if (!$apiToken) {
+        throw "Unable to retrieve site deployment token"
+      }
+      Add-Content -Path $env:GITHUB_OUTPUT -Value "SWA_API_TOKEN=$apiToken"
+      Write-Host "::add-mask::$apiToken"
+
   - name: Deploy
     id: deploy
-    uses: svrooij/azure-static-web-app-deploy-action@c292abe879fd1854817a09ef4b438dae659c7917   # v1.0.0
+    uses: azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9    # v1.0.0
     with:
-      tenant_id: ${{ inputs.azureTenantId }}
-      client_id: ${{ inputs.azureClientId }}
-      static_web_app_name: ${{ inputs.swaSiteName }}
+      # ref: https://aka.ms/swaworkflowconfig
+      azure_static_web_apps_api_token: ${{ steps.getApiToken.outputs.SWA_API_TOKEN }}
+      repo_token: ${{ inputs.githubToken }} # Used for Github integrations (i.e. PR comments)
+      action: upload
       app_location: website
-      api_location: ''
-      swa_environment: 'production'
-      swa_config_directory: ''
-    # uses: azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9    # v1.0.0
-    # with:
-    #   # ref: https://aka.ms/swaworkflowconfig
-    #   azure_static_web_apps_api_token: ${{ inputs.swaApiToken }}
-    #   repo_token: ${{ inputs.githubToken }} # Used for Github integrations (i.e. PR comments)
-    #   action: upload
-    #   app_location: website
-    #   skip_app_build: true
+      skip_app_build: true
