@@ -22,6 +22,10 @@ inputs:
   swaSiteName:
     description: 'The name of the Azure Static Web App'
     required: true
+  apiLocation:
+    description: 'Relative path to the Azure Functions API source code for SWA managed functions. Leave empty for sites without an API.'
+    required: false
+    default: ''
 
 
 runs:
@@ -122,4 +126,5 @@ runs:
       repo_token: ${{ inputs.githubToken }} # Used for Github integrations (i.e. PR comments)
       action: upload
       app_location: website
+      api_location: ${{ inputs.apiLocation }}
       skip_app_build: true
