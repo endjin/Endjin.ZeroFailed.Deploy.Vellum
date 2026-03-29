@@ -23,7 +23,7 @@ inputs:
     description: 'The name of the Azure Static Web App'
     required: true
   apiLocation:
-    description: 'Relative path to the Azure Functions API source code for SWA managed functions. Leave empty for sites without an API.'
+    description: 'Relative path to the Azure Functions API source code for SWA managed functions. The directory must exist in the workspace at deploy time (typically via actions/checkout in a prior step). Leave empty for sites without an API.'
     required: false
     default: ''
 
@@ -116,6 +116,16 @@ runs:
       }
       Add-Content -Path $env:GITHUB_OUTPUT -Value "SWA_API_TOKEN=$apiToken"
       Write-Host "::add-mask::$apiToken"
+
+  - name: Validate API location
+    if: ${{ inputs.apiLocation != '' }}
+    shell: bash
+    run: |
+      if [ ! -d "${{ inputs.apiLocation }}" ]; then
+        echo "::error::apiLocation '${{ inputs.apiLocation }}' does not exist in the workspace. Ensure the repository is checked out (actions/checkout) or the API source is included in the build artefact."
+        exit 1
+      fi
+      echo "API location validated: ${{ inputs.apiLocation }}"
 
   - name: Deploy
     id: deploy
