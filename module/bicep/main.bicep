@@ -3,6 +3,7 @@
 // </copyright>
 targetScope = 'resourceGroup'
 
+param apiLocationInRepo string = ''
 param appLocationInRepo string
 param siteName string
 param customDomain string = ''
@@ -21,6 +22,7 @@ param dnsResourceSubscriptionId string = subscription().subscriptionId
 module swa './static-web-app.bicep' = {
   name: 'swaDeploy'
   params: {
+    apiLocation: apiLocationInRepo
     appLocation: appLocationInRepo
     location: location
     siteName: siteName

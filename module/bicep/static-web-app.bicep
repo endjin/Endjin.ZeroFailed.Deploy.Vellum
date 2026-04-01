@@ -3,6 +3,7 @@
 // </copyright>
 targetScope = 'resourceGroup'
 
+param apiLocation string
 param appLocation string
 param location string
 param siteName string
@@ -39,6 +40,7 @@ resource swa 'Microsoft.Web/staticSites@2025-03-01' = {
     stagingEnvironmentPolicy: stagingEnvironmentPolicy
     allowConfigFileUpdates: allowConfigFileUpdates
     buildProperties: {
+      apiLocation: apiLocation
       appLocation: appLocation
       skipGithubActionWorkflowGeneration: true
     }
