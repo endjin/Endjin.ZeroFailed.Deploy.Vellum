@@ -10,6 +10,7 @@ param siteName string
 param customDomain string = ''
 param dnsResourceGroupName string
 param dnsResourceSubscriptionId string
+param enableEnterpriseEdge bool = false
 param useAzureDns bool
 @secure()
 param previewSitesPassword string = ''
@@ -44,6 +45,7 @@ resource swa 'Microsoft.Web/staticSites@2025-03-01' = {
       appLocation: appLocation
       skipGithubActionWorkflowGeneration: true
     }
+    enterpriseGradeCdnStatus: enableEnterpriseEdge ? 'Enabled' : 'Disabled'
   }
 }
 
