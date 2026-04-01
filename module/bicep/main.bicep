@@ -19,6 +19,8 @@ param location string = resourceGroup().location
 param dnsResourceGroupName string = resourceGroup().name
 param dnsResourceSubscriptionId string = subscription().subscriptionId
 param enableEnterpriseEdge bool
+@secure()
+param previewSitesPassword string = ''
 
 module swa './static-web-app.bicep' = {
   name: 'swaDeploy'
@@ -35,6 +37,7 @@ module swa './static-web-app.bicep' = {
     dnsResourceGroupName: dnsResourceGroupName
     dnsResourceSubscriptionId: dnsResourceSubscriptionId
     enableEnterpriseEdge: enableEnterpriseEdge
+    previewSitesPassword: previewSitesPassword
   }
 }
 
