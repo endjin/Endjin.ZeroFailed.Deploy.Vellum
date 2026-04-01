@@ -46,7 +46,7 @@ task ConfigureCustomDomainWithAzureDns -After ProvisionCore -If { $deploymentCon
     }
 
     # Call SWA REST API directly since the 'Get-AzStaticWebAppCustomDomain' cmdlet does not surface the custom domain's status details
-    $customDomainResp = Invoke-AzRestMethod -Uri "https://management.azure.com$($site.Id)/customDomains/$($deploymentConfig.customDomain)?api-version=2024-11-01"
+    $customDomainResp = Invoke-AzRestMethod -Uri "https://management.azure.com$($site.Id)/customDomains/$($deploymentConfig.customDomain)?api-version=2025-03-01"
     
     # Handle when the custom domain has not yet been setup
     if ($customDomainResp.StatusCode -eq 404) {
@@ -60,7 +60,7 @@ task ConfigureCustomDomainWithAzureDns -After ProvisionCore -If { $deploymentCon
 
         # Re-read the custom domain details which should now be setup
         Start-Sleep -Seconds 5
-        $customDomainResp = Invoke-AzRestMethod -Uri "https://management.azure.com$($site.Id)/customDomains/$($deploymentConfig.customDomain)?api-version=2024-11-01"
+        $customDomainResp = Invoke-AzRestMethod -Uri "https://management.azure.com$($site.Id)/customDomains/$($deploymentConfig.customDomain)?api-version=2025-03-01"
     }
 
     if ($customDomainResp.StatusCode -ge 400) {

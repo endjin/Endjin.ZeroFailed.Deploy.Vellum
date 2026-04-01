@@ -27,14 +27,13 @@ param skuName string = 'Free'
 param stagingEnvironmentPolicy string = 'Enabled'
 param repositoryUrl string
 
-resource swa 'Microsoft.Web/staticSites@2024-11-01' = {
+resource swa 'Microsoft.Web/staticSites@2025-03-01' = {
   name: siteName
   location: location
   sku: {
     name: skuName
   }
   properties: {
-    // repositoryToken: repositoryToken
     repositoryUrl: repositoryUrl
     branch: repositoryBranch
     stagingEnvironmentPolicy: stagingEnvironmentPolicy
@@ -57,7 +56,7 @@ module dns './dns.bicep' = if (!empty(customDomain) && useAzureDns) {
 }
 
 // Undocumented feature for password-protecting access to preview sites
-resource swa_config 'Microsoft.Web/staticSites/config@2024-11-01'= if (!empty(previewSitesPassword)) {
+resource swa_config 'Microsoft.Web/staticSites/config@2025-03-01'= if (!empty(previewSitesPassword)) {
 #disable-next-line BCP036
   name: 'basicAuth'
   parent: swa
