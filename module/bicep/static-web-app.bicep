@@ -3,12 +3,14 @@
 // </copyright>
 targetScope = 'resourceGroup'
 
+param apiLocation string
 param appLocation string
 param location string
 param siteName string
 param customDomain string = ''
 param dnsResourceGroupName string
 param dnsResourceSubscriptionId string
+param enableEnterpriseEdge bool = false
 param useAzureDns bool
 @secure()
 param previewSitesPassword string = ''
@@ -27,22 +29,23 @@ param skuName string = 'Free'
 param stagingEnvironmentPolicy string = 'Enabled'
 param repositoryUrl string
 
-resource swa 'Microsoft.Web/staticSites@2024-11-01' = {
+resource swa 'Microsoft.Web/staticSites@2025-03-01' = {
   name: siteName
   location: location
   sku: {
     name: skuName
   }
   properties: {
-    // repositoryToken: repositoryToken
     repositoryUrl: repositoryUrl
     branch: repositoryBranch
     stagingEnvironmentPolicy: stagingEnvironmentPolicy
     allowConfigFileUpdates: allowConfigFileUpdates
     buildProperties: {
+      apiLocation: apiLocation
       appLocation: appLocation
       skipGithubActionWorkflowGeneration: true
     }
+    enterpriseGradeCdnStatus: enableEnterpriseEdge ? 'Enabled' : 'Disabled'
   }
 }
 
@@ -57,7 +60,7 @@ module dns './dns.bicep' = if (!empty(customDomain) && useAzureDns) {
 }
 
 // Undocumented feature for password-protecting access to preview sites
-resource swa_config 'Microsoft.Web/staticSites/config@2024-11-01'= if (!empty(previewSitesPassword)) {
+resource swa_config 'Microsoft.Web/staticSites/config@2025-03-01'= if (!empty(previewSitesPassword)) {
 #disable-next-line BCP036
   name: 'basicAuth'
   parent: swa

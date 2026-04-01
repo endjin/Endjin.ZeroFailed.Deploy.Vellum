@@ -3,6 +3,7 @@
 // </copyright>
 targetScope = 'resourceGroup'
 
+param apiLocationInRepo string = ''
 param appLocationInRepo string
 param siteName string
 param customDomain string = ''
@@ -17,10 +18,14 @@ param staticWebAppSku string = 'Free'
 param location string = resourceGroup().location
 param dnsResourceGroupName string = resourceGroup().name
 param dnsResourceSubscriptionId string = subscription().subscriptionId
+param enableEnterpriseEdge bool
+@secure()
+param previewSitesPassword string = ''
 
 module swa './static-web-app.bicep' = {
   name: 'swaDeploy'
   params: {
+    apiLocation: apiLocationInRepo
     appLocation: appLocationInRepo
     location: location
     siteName: siteName
@@ -31,6 +36,8 @@ module swa './static-web-app.bicep' = {
     useAzureDns: useAzureDns
     dnsResourceGroupName: dnsResourceGroupName
     dnsResourceSubscriptionId: dnsResourceSubscriptionId
+    enableEnterpriseEdge: enableEnterpriseEdge
+    previewSitesPassword: previewSitesPassword
   }
 }
 
